@@ -81,6 +81,28 @@ class DatabaseManager:
             QMessageBox.critical(None, "Database Error", f"Database {db_name} not found.")
             return []
 
+    def add_new_entry(self, db_name, table_name, data):
+        """Adds a new entry to a specified table in a specified database."""
+        if db_name not in self.connections:
+            print(f"Database {db_name} not found.")
+            return
+
+        conn = self.connections[db_name]
+        try:
+            cursor = conn.cursor()
+
+            # Constructing the INSERT query
+            columns = ', '.join(data.keys())
+            placeholders = ', '.join(['?' for _ in data])
+            query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
+
+            # Executing the query
+            cursor.execute(query, list(data.values()))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error adding new entry to {db_name}: {str(e)}")
+            conn.rollback()
+
     def write_data(self, db_name, table_name, key_field, data):
         """Write data to a specified table in a specified database."""
         if db_name not in self.connections:
@@ -136,53 +158,3 @@ class DatabaseManager:
             print(f"Database Error: {str(e)}")
             QMessageBox.critical(None, "Database Error", str(e))
             sys.exit(1)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def add_dummy_clients(self):
-        """Add dummy data to the clients table in Clients.db."""
-        dummy_clients = [
-            (1, 'Alice', '123 Wonderland Lane', 'Suite 1', '555-0101', 'alice@example.com'),
-            (2, 'Bob', '456 Nowhere Street', '', '555-0202', 'bob@example.com')
-        ]
-        query = '''INSERT INTO clients 
-                   (client_id, client_name, client_address1, client_address2, 
-                   client_phone, client_emailfax) VALUES (?, ?, ?, ?, ?, ?)'''
-        db_name = 'Clients.db'
-        conn = self.connections[db_name]
-        try:
-            cursor = conn.cursor()
-            cursor.executemany(query, dummy_clients)
-            conn.commit()
-        except sqlite3.Error as e:
-            print(f"Error adding dummy clients to {db_name}: {str(e)}")
-            conn.rollback()
-
-    def add_dummy_orders(self):
-        """Add dummy data to the orders table in Orders.db."""
-        dummy_orders = [
-            (1, 1, '2024-01-10', 150.00),
-            (2, 2, '2024-01-11', 200.00)
-        ]
-        query = '''INSERT INTO orders 
-                   (order_id, client_id, order_date, order_total) VALUES (?, ?, ?, ?)'''
-        db_name = 'Orders.db'
-        conn = self.connections[db_name]
-        try:
-            cursor = conn.cursor()
-            cursor.executemany(query, dummy_orders)
-            conn.commit()
-        except sqlite3.Error as e:
-            print(f"Error adding dummy orders to {db_name}: {str(e)}")
-            conn.rollback()

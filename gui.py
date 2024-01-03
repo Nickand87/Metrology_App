@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QListWidget, QFormLayout, QListWidgetItem, QFrame, QMessageBox
 from PyQt5.QtGui import QFont, QIntValidator, QRegExpValidator
 from PyQt5.QtCore import Qt, QRegExp
+from special_classes import EnterLineEdit
 import xml.etree.ElementTree as ET
 import qdarkstyle
 from styles import dark_style, light_style
@@ -15,7 +16,7 @@ class ClientWindow(QMainWindow):
         super().__init__()
         self.db_manager = db_manager
         self.initializeUI()
-        self.view_clients()
+        self.search_clients("")
 
     def initializeUI(self):
         self.setWindowTitle("Client Information")
@@ -70,11 +71,11 @@ class ClientWindow(QMainWindow):
         clients_title.setFont(label_font)
         clients_layout.addRow(clients_title)
 
-        self.client_name_entry = QLineEdit()
-        self.client_address1_entry = QLineEdit()
-        self.client_address2_entry = QLineEdit()
-        self.client_phone_entry = QLineEdit()
-        self.client_emailfax_entry = QLineEdit()
+        self.client_name_entry = EnterLineEdit()
+        self.client_address1_entry = EnterLineEdit()
+        self.client_address2_entry = EnterLineEdit()
+        self.client_phone_entry = EnterLineEdit()
+        self.client_emailfax_entry = EnterLineEdit()
 
         phone_reg_exp = QRegExp("[0-9\-]+")
         self.client_phone_entry.setValidator(QRegExpValidator(phone_reg_exp))
@@ -165,22 +166,58 @@ class ClientWindow(QMainWindow):
         button_layout.addWidget(self.delete_button)
         button_layout.addWidget(self.clear_button)
 
+        self.submit_button.clicked.connect(self.amend_client)
         self.clear_button.clicked.connect(self.clear_fields)
 
     def setupClientList(self, layout):
+        # Create a horizontal layout to hold the two list boxes
+        hbox = QHBoxLayout()
+
+        # Search bar
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Search clients...")
+        self.search_bar.textChanged.connect(self.search_clients)
+        layout.addWidget(self.search_bar)
+
+        # client list
         self.client_list = QListWidget()
         self.client_list.setAlternatingRowColors(True)
         self.client_list.itemDoubleClicked.connect(self.load_client_data)
-        layout.addWidget(self.client_list)
+        hbox.addWidget(self.client_list)
 
-    def view_clients(self):
-        query = "SELECT client_id, client_name, client_address1 FROM clients"
-        client_id = 2
-        all_clients = self.db_manager.fetch_data('Clients.db', query)
+        # contact list
+        self.contact_list = QListWidget()
+        self.contact_list.setAlternatingRowColors(True)
+        hbox.addWidget(self.contact_list)
 
+        layout.addLayout(hbox)
+
+    def search_clients(self, text):
+        if not text.strip():
+            # If the search bar is empty, list all clients
+            query = """
+                SELECT client_id, client_name, client_address1, client_address2 
+                FROM clients 
+                ORDER BY client_name
+            """
+            parameters = ()
+        else:
+            # Perform a fuzzy search on client_name, client_address1, and client_address2
+            query = """
+                SELECT client_id, client_name, client_address1, client_address2 
+                FROM clients 
+                WHERE client_name LIKE ? OR client_address1 LIKE ? OR client_address2 LIKE ?
+                ORDER BY client_name
+            """
+            search_text = f"%{text}%"
+            parameters = (search_text, search_text, search_text)
+
+        results = self.db_manager.fetch_data('Clients.db', query, parameters)
+
+        # Update the client list with the results
         self.client_list.clear()
-        for client in all_clients:
-            self.client_list.addItem(f"{client[0]}: {client[1]}: {client[2]}")
+        for client in results:
+            self.client_list.addItem(f"{client[0]}: {client[1]}: {client[2]}: {client[3]}")
 
     def clear_fields(self):
         """Clears all input fields in the window."""
@@ -197,3 +234,45 @@ class ClientWindow(QMainWindow):
         self.contact_address2_entry.clear()
         self.contact_phone_entry.clear()
         self.contact_emailfax_entry.clear()
+
+    def amend_client(self):
+        client_id_text = self.client_id_entry.text()
+        client_data = {
+            'client_name': self.client_name_entry.text(),
+            'client_address1': self.client_address1_entry.text(),
+            'client_address2': self.client_address2_entry.text(),
+            'client_phone': self.client_phone_entry.text(),
+            'client_emailfax': self.client_emailfax_entry.text()
+        }
+
+        if client_id_text:
+            try:
+                client_id = int(client_id_text)
+                client_data['client_id'] = client_id  # Add this line
+            except ValueError:
+                QMessageBox.warning(self, "Warning", "Invalid Client ID.")
+                return
+
+            # Check if client_id exists in the database
+            query = "SELECT * FROM clients WHERE client_id = ?"
+            existing_client = self.db_manager.fetch_data('Clients.db', query, (client_id,))
+            if existing_client:
+                # Update existing client
+                self.db_manager.write_data('Clients.db', 'clients', 'client_id', client_data)
+            else:
+                QMessageBox.information(self, "Information", "Client ID not found.")
+        else:
+            # Generate a new client ID and add as a new entry
+            new_id = self.generate_unique_client_id()
+            client_data['client_id'] = new_id  # Add this line
+            self.db_manager.add_new_entry('Clients.db', 'clients', client_data)
+            self.client_id_entry.setText(str(new_id))
+
+        self.view_clients()
+
+    def generate_unique_client_id(self):
+        while True:
+            new_id = random.randint(100000, 999999)
+            query = "SELECT * FROM clients WHERE client_id = ?"
+            if not self.db_manager.fetch_data('Clients.db', query, (new_id,)):
+                return new_id
