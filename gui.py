@@ -15,6 +15,27 @@ class ClientWindow(QMainWindow):
     def __init__(self, db_manager):
         super().__init__()
         self.db_manager = db_manager
+
+        # Declare all instance attributes
+        self.client_id_entry = None
+        self.client_name_entry = None
+        self.client_address1_entry = None
+        self.client_address2_entry = None
+        self.client_phone_entry = None
+        self.client_emailfax_entry = None
+        self.contact_name_entry = None
+        self.contact_address1_entry = None
+        self.contact_address2_entry = None
+        self.contact_phone_entry = None
+        self.contact_emailfax_entry = None
+        self.submit_button = None
+        self.load_button = None
+        self.delete_button = None
+        self.clear_button = None
+        self.client_list = None
+        self.contact_list = None
+        self.search_bar = None
+
         self.initializeUI()
         self.search_clients("")
 
@@ -221,6 +242,8 @@ class ClientWindow(QMainWindow):
 
     def clear_fields(self):
         """Clears all input fields in the window."""
+        #self.search_bar.clear()
+
         self.client_id_entry.clear()
         self.client_name_entry.clear()
         self.client_address1_entry.clear()
@@ -268,7 +291,8 @@ class ClientWindow(QMainWindow):
             self.db_manager.add_new_entry('Clients.db', 'clients', client_data)
             self.client_id_entry.setText(str(new_id))
 
-        self.view_clients()
+        current_search_text = self.search_bar.text()
+        self.search_clients(current_search_text)
 
     def generate_unique_client_id(self):
         while True:

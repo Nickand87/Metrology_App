@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel, QSizeGrip, QStatusBar
 from PyQt5.QtCore import Qt
 from db_control import DatabaseManager
 import xml.etree.ElementTree as ET
@@ -33,6 +33,11 @@ class MainWindow(QMainWindow):
         sidebar_widget = QWidget()
         sidebar_layout = QVBoxLayout(sidebar_widget)
         sidebar_widget.setFixedWidth(100)  # Fixed width for the sidebar
+
+        # Create a status bar
+        self.status_bar = QStatusBar()
+        #self.status_bar.setFixedHeight(30)
+        self.setStatusBar(self.status_bar)
 
         # Initialize buttons and add them to the sidebar layout
         self.button1 = QPushButton("Clients")
