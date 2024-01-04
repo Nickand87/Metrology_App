@@ -1,37 +1,59 @@
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QListWidget, QFormLayout, QListWidgetItem, QFrame, QMessageBox
-from PyQt5.QtGui import QFont, QIntValidator, QRegExpValidator
-from PyQt5.QtCore import Qt, QRegExp
-from special_classes import EnterLineEdit
-import xml.etree.ElementTree as ET
-import qdarkstyle
-from styles import dark_style, light_style
-import sys
+# Standard library imports
 import random
-from db_control import DatabaseManager
+
+# PyQt5 imports
+from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                             QLabel, QLineEdit, QPushButton, QListWidget, QFormLayout,
+                             QFrame, QMessageBox)
+from PyQt5.QtGui import QFont, QIntValidator, QRegExpValidator
+from PyQt5.QtCore import QRegExp
+
+# Local application imports
+from special_classes import EnterLineEdit
 
 
 class ClientWindow(QMainWindow):
-
     def __init__(self, db_manager):
         super().__init__()
         self.db_manager = db_manager
+
+        # Initialize all instance attributes
+        self.client_id_entry = None
+        self.client_name_entry = None
+        self.client_address1_entry = None
+        self.client_address2_entry = None
+        self.client_phone_entry = None
+        self.client_emailfax_entry = None
+        self.contact_name_entry = None
+        self.contact_address1_entry = None
+        self.contact_address2_entry = None
+        self.contact_phone_entry = None
+        self.contact_emailfax_entry = None
+        self.submit_button = None
+        self.load_button = None
+        self.delete_button = None
+        self.clear_button = None
+        self.client_list = None
+        self.contact_list = None
+        self.search_bar = None
+
         self.initializeUI()
         self.search_clients("")
 
     def initializeUI(self):
+        """Initializes the main UI components of the window."""
         self.setWindowTitle("Client Information")
         self.setGeometry(100, 100, 800, 500)
-
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
-
         self.setupIDFrame(main_layout)
         self.setupInputFields(main_layout)
         self.setupButtons(main_layout)
         self.setupClientList(main_layout)
 
     def setupIDFrame(self, layout):
+        """Sets up the ID frame in the UI."""
         id_frame = QFrame()
         id_frame.setFrameShape(QFrame.StyledPanel)
         id_layout = QHBoxLayout(id_frame)
@@ -43,7 +65,7 @@ class ClientWindow(QMainWindow):
         self.client_id_entry = QLineEdit()
         self.client_id_entry.setValidator(QIntValidator())
         self.client_id_entry.setFont(font)
-        self.client_id_entry.setReadOnly(True)  # Make the client_id field read-only
+        self.client_id_entry.setReadOnly(True)
 
         id_label = QLabel("ID:")
         id_label.setFont(label_font)
@@ -52,6 +74,7 @@ class ClientWindow(QMainWindow):
         id_layout.addWidget(self.client_id_entry)
 
     def setupInputFields(self, layout):
+        """Sets up input fields for client and contact information."""
         input_layout = QHBoxLayout()
         layout.addLayout(input_layout)
 
@@ -59,6 +82,7 @@ class ClientWindow(QMainWindow):
         self.setupContacts(input_layout)
 
     def setupClientInfo(self, layout):
+        """Sets up client information input fields."""
         clients_frame = QFrame()
         clients_frame.setFrameShape(QFrame.StyledPanel)
         clients_layout = QFormLayout(clients_frame)
@@ -93,6 +117,7 @@ class ClientWindow(QMainWindow):
             clients_layout.addRow(label, widget)
 
     def setupContacts(self, layout):
+        """Sets up contact information input fields."""
         contacts_frame = QFrame()
         contacts_frame.setFrameShape(QFrame.StyledPanel)
         contacts_layout = QFormLayout(contacts_frame)
@@ -126,26 +151,8 @@ class ClientWindow(QMainWindow):
             widget.setFont(font)
             contacts_layout.addRow(label, widget)
 
-    def load_client_data(self, item):
-        # Extract client_id from the clicked item
-        client_id = int(item.text().split(':')[0])  # Assumes format "client_id: client_name: client_address1"
-
-        # Fetch client data from database
-        query = "SELECT client_id, client_name, client_address1, client_address2, client_phone, client_emailfax FROM clients WHERE client_id = ?"
-        client_data = self.db_manager.fetch_data('Clients.db', query, (client_id,))
-
-        if client_data:
-            # Assuming client_data[0] contains the client data tuple
-            self.clear_fields()
-            client = client_data[0]
-            self.client_id_entry.setText(str(client[0]))
-            self.client_name_entry.setText(client[1])
-            self.client_address1_entry.setText(client[2])
-            self.client_address2_entry.setText(client[3])
-            self.client_phone_entry.setText(client[4])
-            self.client_emailfax_entry.setText(client[5])
-
     def setupButtons(self, layout):
+        """Sets up buttons in the UI."""
         button_layout = QHBoxLayout()
         layout.addLayout(button_layout)
 
@@ -170,22 +177,19 @@ class ClientWindow(QMainWindow):
         self.clear_button.clicked.connect(self.clear_fields)
 
     def setupClientList(self, layout):
-        # Create a horizontal layout to hold the two list boxes
+        """Sets up the client list UI component."""
         hbox = QHBoxLayout()
 
-        # Search bar
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search clients...")
         self.search_bar.textChanged.connect(self.search_clients)
         layout.addWidget(self.search_bar)
 
-        # client list
         self.client_list = QListWidget()
         self.client_list.setAlternatingRowColors(True)
         self.client_list.itemDoubleClicked.connect(self.load_client_data)
         hbox.addWidget(self.client_list)
 
-        # contact list
         self.contact_list = QListWidget()
         self.contact_list.setAlternatingRowColors(True)
         hbox.addWidget(self.contact_list)
@@ -193,8 +197,8 @@ class ClientWindow(QMainWindow):
         layout.addLayout(hbox)
 
     def search_clients(self, text):
+        """Searches for clients based on the provided text."""
         if not text.strip():
-            # If the search bar is empty, list all clients
             query = """
                 SELECT client_id, client_name, client_address1, client_address2 
                 FROM clients 
@@ -202,7 +206,6 @@ class ClientWindow(QMainWindow):
             """
             parameters = ()
         else:
-            # Perform a fuzzy search on client_name, client_address1, and client_address2
             query = """
                 SELECT client_id, client_name, client_address1, client_address2 
                 FROM clients 
@@ -213,11 +216,30 @@ class ClientWindow(QMainWindow):
             parameters = (search_text, search_text, search_text)
 
         results = self.db_manager.fetch_data('Clients.db', query, parameters)
-
-        # Update the client list with the results
         self.client_list.clear()
         for client in results:
             self.client_list.addItem(f"{client[0]}: {client[1]}: {client[2]}: {client[3]}")
+
+    def load_client_data(self, item):
+        """Loads client data from the database."""
+        client_id = int(item.text().split(':')[0])
+        query = """
+            SELECT client_id, client_name, client_address1, client_address2, 
+                   client_phone, client_emailfax 
+            FROM clients 
+            WHERE client_id = ?
+        """
+        client_data = self.db_manager.fetch_data('Clients.db', query, (client_id,))
+
+        if client_data:
+            self.clear_fields()
+            client = client_data[0]
+            self.client_id_entry.setText(str(client[0]))
+            self.client_name_entry.setText(client[1])
+            self.client_address1_entry.setText(client[2])
+            self.client_address2_entry.setText(client[3])
+            self.client_phone_entry.setText(client[4])
+            self.client_emailfax_entry.setText(client[5])
 
     def clear_fields(self):
         """Clears all input fields in the window."""
@@ -227,8 +249,6 @@ class ClientWindow(QMainWindow):
         self.client_address2_entry.clear()
         self.client_phone_entry.clear()
         self.client_emailfax_entry.clear()
-
-        # Clearing contact fields if they exist
         self.contact_name_entry.clear()
         self.contact_address1_entry.clear()
         self.contact_address2_entry.clear()
@@ -248,27 +268,25 @@ class ClientWindow(QMainWindow):
         if client_id_text:
             try:
                 client_id = int(client_id_text)
-                client_data['client_id'] = client_id  # Add this line
+                client_data['client_id'] = client_id
             except ValueError:
                 QMessageBox.warning(self, "Warning", "Invalid Client ID.")
                 return
 
-            # Check if client_id exists in the database
             query = "SELECT * FROM clients WHERE client_id = ?"
             existing_client = self.db_manager.fetch_data('Clients.db', query, (client_id,))
             if existing_client:
-                # Update existing client
                 self.db_manager.write_data('Clients.db', 'clients', 'client_id', client_data)
             else:
                 QMessageBox.information(self, "Information", "Client ID not found.")
         else:
-            # Generate a new client ID and add as a new entry
             new_id = self.generate_unique_client_id()
-            client_data['client_id'] = new_id  # Add this line
+            client_data['client_id'] = new_id
             self.db_manager.add_new_entry('Clients.db', 'clients', client_data)
             self.client_id_entry.setText(str(new_id))
 
-        self.view_clients()
+        current_search_text = self.search_bar.text()
+        self.search_clients(current_search_text)
 
     def generate_unique_client_id(self):
         while True:
