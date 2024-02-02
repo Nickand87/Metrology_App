@@ -4,9 +4,9 @@ import random
 # PyQt5 imports
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QLineEdit, QPushButton, QListWidget, QFormLayout,
-                             QFrame, QMessageBox)
+                             QFrame, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView)
 from PyQt5.QtGui import QFont, QIntValidator, QRegExpValidator
-from PyQt5.QtCore import QRegExp
+from PyQt5.QtCore import QRegExp, Qt
 
 # Local application imports
 from special_classes import EnterLineEdit
@@ -33,9 +33,11 @@ class ClientWindow(QMainWindow):
         self.load_button = None
         self.delete_button = None
         self.clear_button = None
-        self.client_list = None
-        self.contact_list = None
+        self.client_table = None
+        self.contact_table = None
         self.search_bar = None
+
+        self.client_table = QTableWidget()
 
         self.initializeUI()
         self.search_clients("")
@@ -50,7 +52,7 @@ class ClientWindow(QMainWindow):
         self.setupIDFrame(main_layout)
         self.setupInputFields(main_layout)
         self.setupButtons(main_layout)
-        self.setupClientList(main_layout)
+        self.setupClientLayout(main_layout)
 
     def setupIDFrame(self, layout):
         """Sets up the ID frame in the UI."""
@@ -176,25 +178,80 @@ class ClientWindow(QMainWindow):
         self.submit_button.clicked.connect(self.amend_client)
         self.clear_button.clicked.connect(self.clear_fields)
 
-    def setupClientList(self, layout):
-        """Sets up the client list UI component."""
-        hbox = QHBoxLayout()
+    def setupClientLayout(self, layout):
+        """Sets up the client and contact table UI components."""
 
+        # Search bar
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search clients...")
         self.search_bar.textChanged.connect(self.search_clients)
         layout.addWidget(self.search_bar)
 
-        self.client_list = QListWidget()
-        self.client_list.setAlternatingRowColors(True)
-        self.client_list.itemDoubleClicked.connect(self.load_client_data)
-        hbox.addWidget(self.client_list)
+        # Layout for tables
+        tables_layout = QHBoxLayout()
 
-        self.contact_list = QListWidget()
-        self.contact_list.setAlternatingRowColors(True)
-        hbox.addWidget(self.contact_list)
+        # Client table setup
+        self.setupClientTable()
+        tables_layout.addWidget(self.client_table, 1)  # The second parameter '1' is the stretch factor
 
-        layout.addLayout(hbox)
+        # Contact table setup
+        self.setupContactTable()
+        tables_layout.addWidget(self.contact_table, 1)  # The second parameter '1' is the stretch factor
+
+        # Adding the tables layout to the main layout
+        layout.addLayout(tables_layout)
+
+    def setupClientTable(self):
+
+        # Client table
+        self.client_table = QTableWidget()
+        self.client_table.setAlternatingRowColors(True)
+        self.client_table.setColumnCount(4)
+        self.client_table.setHorizontalHeaderLabels(["ID", "Client Name", "Address 1", "Address 2"])
+
+        self.client_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.client_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.client_table.setEditTriggers(QTableWidget.NoEditTriggers)
+
+        self.client_table.itemDoubleClicked.connect(self.load_client_data)
+
+        self.client_table.setSortingEnabled(True)
+        self.client_table.sortByColumn(1, Qt.AscendingOrder)
+
+        client_header = self.client_table.horizontalHeader()
+        client_header.setSectionResizeMode(0, QHeaderView.Interactive)
+        client_header.setSectionResizeMode(1, QHeaderView.Stretch)
+        client_header.setSectionResizeMode(2, QHeaderView.Stretch)
+        client_header.setSectionResizeMode(3, QHeaderView.Stretch)
+
+        self.client_table.setColumnWidth(0, 50)
+        self.client_table.setColumnWidth(1, 200)
+        self.client_table.setColumnWidth(2, 150)
+        self.client_table.setColumnWidth(3, 150)
+
+    def setupContactTable(self):
+
+        # Contact table
+        self.contact_table = QTableWidget()
+        self.contact_table.setAlternatingRowColors(True)
+        self.contact_table.setColumnCount(3)
+        self.contact_table.setHorizontalHeaderLabels(["Contact Name", "Contact Type", "Contact Phone Number"])
+
+        self.contact_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.contact_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.contact_table.setEditTriggers(QTableWidget.NoEditTriggers)
+
+        self.contact_table.setSortingEnabled(True)
+        self.contact_table.sortByColumn(1, Qt.AscendingOrder)
+
+        contact_header = self.contact_table.horizontalHeader()
+        contact_header.setSectionResizeMode(0, QHeaderView.Interactive)
+        contact_header.setSectionResizeMode(1, QHeaderView.Stretch)
+        contact_header.setSectionResizeMode(2, QHeaderView.Stretch)
+
+        self.contact_table.setColumnWidth(0, 100)
+        self.contact_table.setColumnWidth(1, 100)
+        self.contact_table.setColumnWidth(2, 100)
 
     def search_clients(self, text):
         """Searches for clients based on the provided text."""
@@ -216,13 +273,17 @@ class ClientWindow(QMainWindow):
             parameters = (search_text, search_text, search_text)
 
         results = self.db_manager.fetch_data('Clients.db', query, parameters)
-        self.client_list.clear()
-        for client in results:
-            self.client_list.addItem(f"{client[0]}: {client[1]}: {client[2]}: {client[3]}")
+
+        self.client_table.setRowCount(len(results))
+        for row_number, row_data in enumerate(results):
+            for column_number, data in enumerate(row_data):
+                cell = QTableWidgetItem(str(data))
+                self.client_table.setItem(row_number, column_number, cell)
 
     def load_client_data(self, item):
         """Loads client data from the database."""
-        client_id = int(item.text().split(':')[0])
+        row = item.row()
+        client_id = int(self.client_table.item(row, 0).text())  # Assuming ID is in the first column
         query = """
             SELECT client_id, client_name, client_address1, client_address2, 
                    client_phone, client_emailfax 
